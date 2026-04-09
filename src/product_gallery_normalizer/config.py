@@ -9,8 +9,8 @@ from pydantic import BaseModel, Field
 class ImageTransform(BaseModel):
     """Per-image transform state — the single source of truth for position, rotation and scale."""
 
-    x: float = Field(default=0.0, description="Horizontal offset in pixels")
-    y: float = Field(default=0.0, description="Vertical offset in pixels")
+    x: float = Field(default=500.0, description="Scene X coordinate of the image centre (px)")
+    y: float = Field(default=500.0, description="Scene Y coordinate of the image centre (px)")
     rotation: float = Field(default=0.0, description="Rotation in degrees")
     scale: float = Field(default=1.0, gt=0.0, description="Scale factor")
 
