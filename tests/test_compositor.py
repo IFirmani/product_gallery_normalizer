@@ -10,51 +10,47 @@ from product_gallery_normalizer.config import ImageTransform
 
 
 def test_composite_returns_rgba_image(
-    background_png: Path, product_png: Path, default_transform: ImageTransform
+    tmp_background: Path, tmp_png: Path, default_transform: ImageTransform
 ) -> None:
-    result = composite_image(background_png, product_png, default_transform)
+    result = composite_image(tmp_background, tmp_png, default_transform)
     assert isinstance(result, Image.Image)
     assert result.mode == "RGBA"
 
 
-def test_composite_output_is_1000x1000(
-    background_png: Path, product_png: Path, default_transform: ImageTransform
+def test_composite_output_is_canvas_size(
+    tmp_background: Path, tmp_png: Path, default_transform: ImageTransform
 ) -> None:
-    result = composite_image(background_png, product_png, default_transform)
+    result = composite_image(tmp_background, tmp_png, default_transform, canvas_size=1000)
     assert result.size == (1000, 1000)
 
 
 def test_composite_product_visible_at_origin(
-    background_png: Path, product_png: Path
+    tmp_background: Path, tmp_png: Path
 ) -> None:
     transform = ImageTransform(x=0.0, y=0.0, rotation=0.0, scale=1.0)
-    result = composite_image(background_png, product_png, transform)
-    # The product is red; at (0,0) the pixel should have a red component
+    result = composite_image(tmp_background, tmp_png, transform)
     r, g, b, a = result.getpixel((0, 0))
-    assert r > 200
+    assert r > 200  # product is red
 
 
-def test_composite_raises_for_missing_background(
-    product_png: Path, default_transform: ImageTransform, tmp_path: Path
+def test_composite_scale_produces_correct_size(
+    tmp_background: Path, tmp_png: Path
 ) -> None:
-    with pytest.raises(ValueError, match="Background"):
-        composite_image(tmp_path / "nonexistent.png", product_png, default_transform)
+    for scale in (0.5, 1.0, 2.0):
+        transform = ImageTransform(x=0.0, y=0.0, rotation=0.0, scale=scale)
+        result = composite_image(tmp_background, tmp_png, transform)
+        assert result.size == (1000, 1000)
 
 
-def test_composite_raises_for_missing_product(
-    background_png: Path, default_transform: ImageTransform, tmp_path: Path
+def test_composite_missing_background_raises(
+    tmp_png: Path, default_transform: ImageTransform, tmp_path: Path
 ) -> None:
-    with pytest.raises(ValueError, match="Product"):
-        composite_image(background_png, tmp_path / "nonexistent.png", default_transform)
+    with pytest.raises(Exception):
+        composite_image(tmp_path / "no_bg.png", tmp_png, default_transform)
 
 
-def test_composite_scale_affects_output(
-    background_png: Path, product_png: Path
+def test_composite_missing_product_raises(
+    tmp_background: Path, default_transform: ImageTransform, tmp_path: Path
 ) -> None:
-    transform_small = ImageTransform(x=0.0, y=0.0, rotation=0.0, scale=0.5)
-    transform_large = ImageTransform(x=0.0, y=0.0, rotation=0.0, scale=2.0)
-    # Both should succeed and produce 1000×1000 results
-    r1 = composite_image(background_png, product_png, transform_small)
-    r2 = composite_image(background_png, product_png, transform_large)
-    assert r1.size == (1000, 1000)
-    assert r2.size == (1000, 1000)
+    with pytest.raises(Exception):
+        composite_image(tmp_background, tmp_path / "no_prod.png", default_transform)

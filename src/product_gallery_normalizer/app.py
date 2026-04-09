@@ -15,9 +15,7 @@ def run() -> None:
     logging.basicConfig(level=logging.INFO)
     app = QApplication(sys.argv)
     app.setApplicationName("product_gallery_normalizer")
-
     window = MainWindow()
     window.show()
-
     logger.info("Application started")
     sys.exit(app.exec())
