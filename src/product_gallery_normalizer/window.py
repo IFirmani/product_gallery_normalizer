@@ -193,6 +193,12 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._scale_sl)
         layout.addWidget(self._sep())
 
+        # --- Edge Feather ---
+        layout.addWidget(section("Edge Feather"))
+        self._feather_sl = self._make_slider(0, 100, 0)
+        layout.addWidget(self._feather_sl)
+        layout.addWidget(self._sep())
+
         # --- Reset ---
         reset_btn = QPushButton("Reset transform")
         reset_btn.setFixedHeight(30)
@@ -209,6 +215,7 @@ class MainWindow(QMainWindow):
         self._prop_scale.valueChanged.connect(self._on_props_changed)
         self._rot_sl.valueChanged.connect(self._on_rot_slider)
         self._scale_sl.valueChanged.connect(self._on_scale_slider)
+        self._feather_sl.valueChanged.connect(self._on_feather_slider)
 
         return panel
 
@@ -395,6 +402,7 @@ class MainWindow(QMainWindow):
             y=self._prop_y.value(),
             rotation=self._prop_rot.value(),
             scale=self._prop_scale.value(),
+            edge_feather=self._feather_sl.value(),
         )
         self._scene.apply_transform(t)
         if self._gallery.current is not None:
@@ -422,15 +430,18 @@ class MainWindow(QMainWindow):
         finally:
             self._updating_props = False
         if self._gallery.current is not None:
+            feather = self._gallery.current.transform.edge_feather
             self._gallery.update_current_transform(
-                ImageTransform(x=x, y=y, rotation=rot, scale=scale)
+                ImageTransform(x=x, y=y, rotation=rot, scale=scale, edge_feather=feather)
             )
 
     def _on_reset_transform(self) -> None:
         t = ImageTransform()
-        self._scene.apply_transform(t)
         if self._gallery.current is not None:
             self._gallery.update_current_transform(t)
+            self._scene.set_product(self._gallery.current.path, t)
+        else:
+            self._scene.apply_transform(t)
         self._updating_props = True
         try:
             self._prop_x.setValue(t.x)
@@ -439,6 +450,7 @@ class MainWindow(QMainWindow):
             self._prop_scale.setValue(t.scale)
             self._rot_sl.setValue(int(t.rotation))
             self._scale_sl.setValue(int(t.scale * 100))
+            self._feather_sl.setValue(t.edge_feather)
         finally:
             self._updating_props = False
 
@@ -451,6 +463,7 @@ class MainWindow(QMainWindow):
             self._prop_scale.setValue(t.scale)
             self._rot_sl.setValue(int(t.rotation))
             self._scale_sl.setValue(int(t.scale * 100))
+            self._feather_sl.setValue(t.edge_feather)
         finally:
             self._updating_props = False
 
@@ -471,6 +484,18 @@ class MainWindow(QMainWindow):
         self._prop_scale.setValue(v / 100.0)
         self._prop_scale.blockSignals(False)
         self._on_props_changed()
+
+    def _on_feather_slider(self, v: int) -> None:
+        """Feather slider moved → reload product with updated edge feather."""
+        if self._updating_props:
+            return
+        item = self._gallery.current
+        if item is None:
+            return
+        t = self._scene.get_current_transform()
+        t = t.model_copy(update={"edge_feather": v})
+        self._gallery.update_current_transform(t)
+        self._scene.set_product(item.path, t)
 
     # ================================================================ gallery bar
 
@@ -546,7 +571,11 @@ class MainWindow(QMainWindow):
 
     def _save_transform(self) -> None:
         if self._gallery.current is not None:
-            self._gallery.update_current_transform(self._scene.get_current_transform())
+            t = self._scene.get_current_transform()
+            feather = self._gallery.current.transform.edge_feather
+            self._gallery.update_current_transform(
+                t.model_copy(update={"edge_feather": feather})
+            )
 
     def _refresh_canvas(self) -> None:
         item = self._gallery.current

@@ -13,6 +13,7 @@ class ImageTransform(BaseModel):
     y: float = Field(default=500.0, description="Scene Y coordinate of the image centre (px)")
     rotation: float = Field(default=0.0, description="Rotation in degrees")
     scale: float = Field(default=1.0, gt=0.0, description="Scale factor")
+    edge_feather: int = Field(default=0, ge=0, description="Edge feather radius in pixels (0 = off)")
 
 
 class AppConfig(BaseModel):

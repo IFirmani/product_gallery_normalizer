@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from product_gallery_normalizer.config import ImageTransform
+from product_gallery_normalizer.utils import apply_edge_feather
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +131,12 @@ class CanvasScene(QGraphicsScene):
         """
         self._product._mute = True
         try:
-            px = QPixmap(str(path))
+            if transform.edge_feather > 0:
+                pil_img = PilImage.open(path)
+                pil_img = apply_edge_feather(pil_img, transform.edge_feather)
+                px = _pil_to_pixmap(pil_img)
+            else:
+                px = QPixmap(str(path))
             pw, ph = px.width(), px.height()
             self._product.setPixmap(px)
             # Anchor: rotate/scale around the centre of the image
