@@ -8,8 +8,9 @@ from typing import Literal
 
 from PIL import Image as PilImage
 from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QIcon, QImage, QPixmap
+from PySide6.QtGui import QAction, QIcon, QImage, QPixmap
 from PySide6.QtWidgets import (
+    QDockWidget,
     QDoubleSpinBox,
     QFileDialog,
     QHBoxLayout,
@@ -24,7 +25,8 @@ from PySide6.QtWidgets import (
 )
 
 from product_gallery_normalizer.canvas import CanvasScene, CanvasView
-from product_gallery_normalizer.config import AppConfig, ImageTransform
+from product_gallery_normalizer.catalog_panel import CatalogPanel
+from product_gallery_normalizer.config import AppConfig, ImageTransform, load_config, save_config
 from product_gallery_normalizer.gallery import Gallery
 
 logger = logging.getLogger(__name__)
@@ -54,7 +56,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("product_gallery_normalizer")
         self.resize(1500, 1000)
 
-        self._config = AppConfig()
+        self._config = load_config()
         self._gallery = Gallery()
         self._scene = CanvasScene()
         self._view = CanvasView(self._scene)
@@ -63,6 +65,8 @@ class MainWindow(QMainWindow):
 
         self._build_ui()
         self._build_status_bar()
+        self._build_catalog_dock()
+        self._build_menu_bar()
         self._scene.product_transform_changed.connect(self._on_canvas_transform_changed)
 
     # ================================================================ layout
@@ -302,6 +306,33 @@ class MainWindow(QMainWindow):
         self._status = QStatusBar()
         self.setStatusBar(self._status)
         self._status.showMessage("Ready")
+
+    def _build_catalog_dock(self) -> None:
+        self._catalog_panel = CatalogPanel(self._config, parent=self)
+        self._catalog_panel.settings_requested.connect(self._open_credentials_dialog)
+        self._catalog_dock = QDockWidget("WooCommerce Catalog", self)
+        self._catalog_dock.setWidget(self._catalog_panel)
+        self._catalog_dock.setMinimumWidth(300)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._catalog_dock)
+
+    def _build_menu_bar(self) -> None:
+        view_menu = self.menuBar().addMenu("View")
+        catalog_action: QAction = view_menu.addAction("WooCommerce Catalog")  # type: ignore[assignment]
+        catalog_action.setCheckable(True)
+        catalog_action.setChecked(True)
+        catalog_action.triggered.connect(self._catalog_dock.setVisible)
+        self._catalog_dock.visibilityChanged.connect(catalog_action.setChecked)
+
+    def _open_credentials_dialog(self) -> None:
+        from product_gallery_normalizer.credentials_dialog import CredentialsDialog
+
+        dlg = CredentialsDialog(self._config.woocommerce, parent=self)
+        dlg.credentials_saved.connect(self._on_credentials_saved)
+        dlg.exec()
+
+    def _on_credentials_saved(self, credentials) -> None:
+        self._catalog_panel.set_credentials(credentials)
+        save_config(self._config)
 
     # ================================================================ tool actions
 
